@@ -146,8 +146,8 @@
                     <textarea name="projectDescription" id="projectDescription" rows="3"></textarea>
                 </div>
                 <div class="button-group">
-                    <button type="button" id="projectAddBtn">Agregar</button>
-                    <button type="button" id="projectUpdateBtn" style="display:none;">Actualizar</button>
+                    <button type="submit" id="projectAddBtn">Agregar</button>
+                    <button type="submit" id="projectUpdateBtn" style="display:none;">Actualizar</button>
                 </div>
             </form>
         </div>
@@ -164,7 +164,7 @@
                         <td>{{ p.description or '' }}</td>
                         <td>
                             <!-- SOLUCIÓN: Usar data-project-id -->
-                            <button type="button" class="btn-edit-project" data-project-id="{{ p.id }}">Seleccionar</button>
+                            <button type="submit" class="btn-edit-project" data-project-id="{{ p.id }}">Seleccionar</button>
                             <form method="post" action="{{ url_for('projects.delete', pid=p.id) }}" style="display:inline;" class="delete-form">
                                 <button type="submit">Eliminar</button>
                             </form>

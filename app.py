@@ -6,6 +6,7 @@ from controllers.auth_controller import auth_bp
 from controllers.home_controller import home_bp
 from controllers.task_controller import task_bp
 from controllers.project_controller import project_bp
+import os
 
 app = Flask(__name__, template_folder="views", static_folder="static")
 app.secret_key = SECRET_KEY
