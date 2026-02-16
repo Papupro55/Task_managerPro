@@ -1,0 +1,341 @@
+{% extends "layouts/base.html" %}
+{% block title %}Dashboard - Task Manager{% endblock %}
+{% block content %}
+<main id="main-content">
+<h1>Task Manager</h1>
+<div class="panel">
+    <div class="header">
+        <span><strong>{{ current_user.username }}</strong></span>
+        <a href="{{ url_for('auth.logout') }}" class="btn">Salir</a>
+    </div>
+
+    <div class="tabs">
+        <button type="button" class="tab-button {{ 'active' if tab == 'tasks' or not tab }}"
+                data-tab="tasks">Tareas</button>
+        <button type="button" class="tab-button {{ 'active' if tab == 'projects' }}" data-tab="projects">Proyectos</button>
+        <button type="button" class="tab-button {{ 'active' if tab == 'comments' }}" data-tab="comments">Comentarios</button>
+        <button type="button" class="tab-button {{ 'active' if tab == 'history' }}" data-tab="history">Historial</button>
+        <button type="button" class="tab-button {{ 'active' if tab == 'notifications' }}" data-tab="notifications">Notificaciones</button>
+        <button type="button" class="tab-button {{ 'active' if tab == 'search' }}" data-tab="search">Búsqueda</button>
+        <button type="button" class="tab-button {{ 'active' if tab == 'reports' }}" data-tab="reports">Reportes</button>
+    </div>
+
+    <!-- Tab: Tareas -->
+    <div id="tasksTab" class="tab-content {{ 'active' if tab == 'tasks' or not tab }}">
+        <h2>Gestión de Tareas</h2>
+        <div class="form-section">
+            <h3>Nueva/Editar Tarea</h3>
+            <form method="post" action="{{ url_for('tasks.add') }}" id="taskForm">
+                <div class="form-group">
+                    <label for="taskTitle">Título:</label>
+                    <input type="text" name="taskTitle" id="taskTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="taskDescription">Descripción:</label>
+                    <textarea name="taskDescription" id="taskDescription" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="taskStatus">Estado:</label>
+                    <select name="taskStatus" id="taskStatus">
+                        <option>Pendiente</option>
+                        <option>En Progreso</option>
+                        <option>Completada</option>
+                        <option>Bloqueada</option>
+                        <option>Cancelada</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="taskPriority">Prioridad:</label>
+                    <select name="taskPriority" id="taskPriority">
+                        <option>Baja</option>
+                        <option>Media</option>
+                        <option selected>Alta</option>
+                        <option>Crítica</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="taskProject">Proyecto:</label>
+                    <select name="taskProject" id="taskProject">
+                        {% for p in projects %}
+                        <option value="{{ p.id }}">{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="taskAssigned">Asignado a:</label>
+                    <select name="taskAssigned" id="taskAssigned">
+                        <option value="0">Sin asignar</option>
+                        {% for u in users %}
+                        <option value="{{ u.id }}">{{ u.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fecha Vencimiento:</label>
+                    <input type="text" name="taskDueDate" id="taskDueDate" placeholder="YYYY-MM-DD">
+                </div>
+                <div class="form-group">
+                    <label for="taskHours">Horas Estimadas:</label>
+                    <input type="number" name="taskHours" id="taskHours" step="0.5">
+                </div>
+                <div class="button-group">
+                    <button type="submit">Agregar</button>
+                </div>
+            </form>
+            <div class="button-group">
+                <button type="button" id="clearTaskBtn">Limpiar</button>
+            </div>
+        </div>
+        <div class="table-section">
+            <h3>Lista de Tareas</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Título</th>
+                        <th>Estado</th>
+                        <th>Prioridad</th>
+                        <th>Proyecto</th>
+                        <th>Asignado</th>
+                        <th>Vencimiento</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tasks %}
+                    {% set proj = projects|selectattr('id', 'equalto', t.projectId)|first %}
+                    {% set usr = users|selectattr('id', 'equalto', t.assignedTo)|first %}
+                    <tr>
+                        <td>{{ t.id }}</td>
+                        <td>{{ t.title }}</td>
+                        <td>{{ t.status or 'Pendiente' }}</td>
+                        <td>{{ t.priority or 'Media' }}</td>
+                        <td>{{ proj.name if proj else 'Sin proyecto' }}</td>
+                        <td>{{ usr.username if usr else 'Sin asignar' }}</td>
+                        <td>{{ t.dueDate or 'Sin fecha' }}</td>
+                        <td>
+                            <!-- SOLUCIÓN: Usar data-task-id en lugar de onclick -->
+                            <button type="button" class="btn-edit-task" data-task-id="{{ t.id }}">Editar</button>
+                            <form method="post" action="{{ url_for('tasks.delete', tid=t.id) }}" style="display:inline;" class="delete-form">
+                                <button type="submit">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="stats">
+            <strong>Estadísticas:</strong>
+            <span>Total: {{ stats.total }} | Completadas: {{ stats.completed }} | Pendientes: {{ stats.pending }} | Alta Prioridad: {{ stats.high_priority }} | Vencidas: {{ stats.overdue }}</span>
+        </div>
+    </div>
+
+    <!-- Tab: Proyectos -->
+    <div id="projectsTab" class="tab-content">
+        <h2>Gestión de Proyectos</h2>
+        <div class="form-section">
+            <form method="post" action="{{ url_for('projects.add') }}" id="projectForm">
+                <input type="hidden" name="projectId" id="projectId" value="">
+                <div class="form-group">
+                    <label>Nombre:</label>
+                    <input type="text" name="projectName" id="projectName" required>
+                </div>
+                <div class="form-group">
+                    <label>Descripción:</label>
+                    <textarea name="projectDescription" id="projectDescription" rows="3"></textarea>
+                </div>
+                <div class="button-group">
+                    <button type="button" id="projectAddBtn">Agregar</button>
+                    <button type="button" id="projectUpdateBtn" style="display:none;">Actualizar</button>
+                </div>
+            </form>
+        </div>
+        <div class="table-section">
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>Nombre</th><th>Descripción</th><th>Acciones</th></tr>
+                </thead>
+                <tbody>
+                    {% for p in projects %}
+                    <tr>
+                        <td>{{ p.id }}</td>
+                        <td>{{ p.name }}</td>
+                        <td>{{ p.description or '' }}</td>
+                        <td>
+                            <!-- SOLUCIÓN: Usar data-project-id -->
+                            <button type="button" class="btn-edit-project" data-project-id="{{ p.id }}">Seleccionar</button>
+                            <form method="post" action="{{ url_for('projects.delete', pid=p.id) }}" style="display:inline;" class="delete-form">
+                                <button type="submit">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab: Comentarios -->
+    <div id="commentsTab" class="tab-content {{ 'active' if tab == 'comments' }}">
+        <h2>Comentarios de Tareas</h2>
+        <div class="form-section">
+            <form method="post" action="{{ url_for('tasks.add_comment') }}">
+                <div class="form-group">
+                    <label>ID Tarea:</label>
+                    <input type="number" name="commentTaskId" id="commentTaskId">
+                </div>
+                <div class="form-group">
+                    <label>Comentario:</label>
+                    <textarea name="commentText" rows="3" required></textarea>
+                </div>
+                <button type="submit">Agregar Comentario</button>
+            </form>
+            <form method="get" action="{{ url_for('home.dashboard') }}">
+                <input type="hidden" name="tab" value="comments">
+                <div class="form-group">
+                    <label>ID Tarea:</label>
+                    <input type="number" name="task_id" value="{{ task_id or '' }}" placeholder="ID">
+                </div>
+                <button type="submit">Cargar Comentarios</button>
+            </form>
+        </div>
+        <div class="text-area-section">
+            <h3>Comentarios</h3>
+            <textarea readonly rows="15">{{ comments_text or 'Ingresa un ID de tarea y pulsa Cargar Comentarios' }}</textarea>
+        </div>
+    </div>
+
+    <!-- Tab: Historial -->
+    <div id="historyTab" class="tab-content {{ 'active' if tab == 'history' }}">
+        <h2>Historial de Cambios</h2>
+        <div class="form-section">
+            <form method="get" action="{{ url_for('home.dashboard') }}">
+                <input type="hidden" name="tab" value="history">
+                <div class="form-group">
+                    <label>ID Tarea:</label>
+                    <input type="number" name="task_id" value="{{ task_id or '' }}" placeholder="ID (vacío = todo)">
+                </div>
+                <button type="submit">Cargar Historial</button>
+            </form>
+            <a href="{{ url_for('home.dashboard', tab='history') }}" class="btn">Cargar Todo el Historial</a>
+        </div>
+        <div class="text-area-section">
+            <textarea readonly rows="20">{{ history_text or 'Selecciona tarea o pulsa Cargar Todo' }}</textarea>
+        </div>
+    </div>
+
+    <!-- Tab: Notificaciones -->
+    <div id="notificationsTab" class="tab-content {{ 'active' if tab == 'notifications' }}">
+        <h2>Notificaciones</h2>
+        <div class="form-section">
+            <form method="get" action="{{ url_for('home.dashboard') }}">
+                <input type="hidden" name="tab" value="notifications">
+                <button type="submit">Cargar Notificaciones</button>
+            </form>
+            <form method="post" action="{{ url_for('tasks.mark_notifications_read') }}" style="display:inline;">
+                <button type="submit">Marcar como Leídas</button>
+            </form>
+        </div>
+        <div class="text-area-section">
+            <textarea readonly rows="20">{% if tab == 'notifications' %}{{ notifications_list|join('\n') or 'No hay notificaciones nuevas' }}{% else %}Pulsa Cargar Notificaciones{% endif %}</textarea>
+        </div>
+    </div>
+
+    <!-- Tab: Búsqueda -->
+    <div id="searchTab" class="tab-content {{ 'active' if tab == 'search' }}">
+        <h2>Búsqueda Avanzada</h2>
+        <div class="form-section">
+            <form method="get" action="{{ url_for('home.dashboard') }}">
+                <input type="hidden" name="tab" value="search">
+                <div class="form-group">
+                    <label>Texto:</label>
+                    <input type="text" name="q" value="{{ request.args.get('q', '') }}">
+                </div>
+                <div class="form-group">
+                    <label>Estado:</label>
+                    <select name="status">
+                        <option value="">Todos</option>
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="En Progreso">En Progreso</option>
+                        <option value="Completada">Completada</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Prioridad:</label>
+                    <select name="priority">
+                        <option value="">Todas</option>
+                        <option value="Baja">Baja</option>
+                        <option value="Media">Media</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Crítica">Crítica</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Proyecto:</label>
+                    <select name="project_id">
+                        <option value="0">Todos</option>
+                        {% for p in projects %}
+                        <option value="{{ p.id }}">{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit">Buscar</button>
+            </form>
+        </div>
+        <div class="table-section">
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>Título</th><th>Estado</th><th>Prioridad</th><th>Proyecto</th></tr>
+                </thead>
+                <tbody>
+                    {% if search_results is not none %}
+                    {% for t in search_results %}
+                    {% set proj = projects|selectattr('id', 'equalto', t.projectId)|first %}
+                    <tr>
+                        <td>{{ t.id }}</td>
+                        <td>{{ t.title }}</td>
+                        <td>{{ t.status or 'Pendiente' }}</td>
+                        <td>{{ t.priority or 'Media' }}</td>
+                        <td>{{ proj.name if proj else 'Sin proyecto' }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab: Reportes -->
+    <div id="reportsTab" class="tab-content {{ 'active' if tab == 'reports' }}">
+        <h2>Generación de Reportes</h2>
+        <div class="form-section">
+            <p>Reporte de Tareas: Total {{ stats.total }}, Completadas {{ stats.completed }}, Pendientes {{ stats.pending }}.</p>
+            <p>Reporte de Proyectos: {% for p in projects %}{{ p.name }} ({{ tasks|selectattr('projectId', 'equalto', p.id)|list|length }} tareas). {% endfor %}</p>
+            <p>Reporte de Usuarios: {% for u in users %}{{ u.username }} ({{ tasks|selectattr('assignedTo', 'equalto', u.id)|list|length }} asignadas). {% endfor %}</p>
+          <form action="{{ url_for('tasks.export_reports') }}" method="get">
+            <button type="submit">Exportar Reporte CSV</button>
+        </form>
+        </div>
+        <div class="text-area-section">
+            <textarea readonly rows="20" id="reportsArea">Estadísticas en la sección superior.</textarea>
+        </div>
+    </div>
+</div>
+
+<!-- Datos para JavaScript (ocultos) -->
+<div id="app-data" style="display: none;"
+     data-tasks='{{ tasks|tojson }}'
+     data-projects='{{ projects|tojson }}'
+     data-users='{{ users|tojson }}'
+     data-task-update-url='{{ url_for("tasks.update", tid=0) }}'
+     data-task-add-url='{{ url_for("tasks.add") }}'
+     data-project-update-url='{{ url_for("projects.update", pid=0) }}'
+     data-project-add-url='{{ url_for("projects.add") }}'>
+</div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
